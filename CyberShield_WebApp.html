@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberShield — AI Cybercrime Investigation System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #03070f;
+  --surface: #080f1e;
+  --surface2: #0d1a2e;
+  --surface3: #112238;
+  --border: #1a3050;
+  --accent: #00d4ff;
+  --accent2: #0066ff;
+  --green: #00ff88;
+  --red: #ff3355;
+  --orange: #ff9900;
+  --yellow: #ffe033;
+  --purple: #9d4edd;
+  --text: #c8dff0;
+  --text-dim: #4a6a8a;
+  --text-bright: #e8f4ff;
+  --mono: 'IBM Plex Mono', monospace;
+  --head: 'Rajdhani', sans-serif;
+  --body: 'Inter', sans-serif;
+  --glow: 0 0 20px rgba(0,212,255,0.3);
+  --glow-green: 0 0 20px rgba(0,255,136,0.3);
+  --glow-red: 0 0 20px rgba(255,51,85,0.3);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--body);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* ── SCANLINE OVERLAY ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none;z-index:9999
+}
+
+/* ── TOP BAR ── */
+#topbar{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex;align-items:center;gap:16px;
+  height:52px;flex-shrink:0;
+  position:relative;
+}
+#topbar::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:0.5;
+}
+.logo{
+  font-family:var(--head);font-size:22px;font-weight:700;
+  color:var(--accent);letter-spacing:3px;text-transform:uppercase;
+  text-shadow:var(--glow);display:flex;align-items:center;gap:8px;
+}
+.logo-icon{font-size:18px}
+.logo-sub{font-size:10px;color:var(--text-dim);letter-spacing:2px;font-family:var(--mono)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:var(--glow-green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.user-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:4px 12px 4px 4px;cursor:pointer;
+  transition:border-color 0.2s;font-size:13px;
+}
+.user-pill:hover{border-color:var(--accent)}
+.avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+#topbar-username{font-weight:500;color:var(--text-bright)}
+#topbar-role{font-size:10px;color:var(--text-dim);font-family:var(--mono)}
+
+/* ── MAIN LAYOUT ── */
+#app{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:220px;min-width:220px;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:16px 0;overflow-y:auto;
+}
+.nav-section-label{
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-dim);padding:12px 20px 6px;font-family:var(--mono);
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 20px;cursor:pointer;
+  border-left:2px solid transparent;
+  transition:all 0.2s;font-size:13px;font-weight:500;color:var(--text-dim);
+  position:relative;
+}
+.nav-item:hover{color:var(--text);background:var(--surface2);border-left-color:var(--border)}
+.nav-item.active{color:var(--accent);background:rgba(0,212,255,0.05);border-left-color:var(--accent)}
+.nav-item.active .nav-icon{filter:drop-shadow(0 0 4px var(--accent))}
+.nav-icon{font-size:15px;width:20px;text-align:center}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;
+  font-family:var(--mono);
+}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border)}
+.logout-btn{
+  width:100%;padding:8px;background:transparent;border:1px solid var(--border);
+  color:var(--text-dim);border-radius:6px;cursor:pointer;font-size:12px;
+  font-family:var(--body);transition:all 0.2s;display:flex;align-items:center;gap:8px;justify-content:center;
+}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* ── CONTENT AREA ── */
+#content{flex:1;overflow-y:auto;background:var(--bg)}
+.page{display:none;padding:28px;animation:fadeIn 0.3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PAGE HEADERS ── */
+.page-header{margin-bottom:24px}
+.page-title{
+  font-family:var(--head);font-size:28px;font-weight:700;
+  color:var(--text-bright);letter-spacing:1px;line-height:1;
+}
+.page-subtitle{font-size:13px;color:var(--text-dim);margin-top:4px;font-family:var(--mono)}
+.page-actions{display:flex;gap:10px;margin-top:16px;align-items:center}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:8px 18px;border-radius:6px;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;font-family:var(--body);
+  transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;
+  box-shadow:0 0 15px rgba(0,102,255,0.4);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 25px rgba(0,102,255,0.6)}
+.btn-success{background:linear-gradient(135deg,#006644,var(--green));color:#000;box-shadow:var(--glow-green)}
+.btn-success:hover{transform:translateY(-1px)}
+.btn-danger{background:linear-gradient(135deg,#880020,var(--red));color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text);
+  transition:all 0.2s}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ── CARDS ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:20px;
+}
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.card-title{font-family:var(--head);font-size:16px;font-weight:700;color:var(--text-bright);letter-spacing:1px}
+
+/* ── STAT CARDS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:16px;position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+}
+.stat-card.blue::before{background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.stat-card.green::before{background:linear-gradient(90deg,#006644,var(--green))}
+.stat-card.red::before{background:linear-gradient(90deg,#880020,var(--red))}
+.stat-card.orange::before{background:linear-gradient(90deg,#663300,var(--orange))}
+.stat-card.purple::before{background:linear-gradient(90deg,#3d1a77,var(--purple))}
+.stat-num{font-family:var(--head);font-size:36px;font-weight:700;color:var(--text-bright);line-height:1}
+.stat-label{font-size:11px;color:var(--text-dim);margin-top:4px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono)}
+.stat-icon{position:absolute;right:16px;top:16px;font-size:24px;opacity:0.3}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);
+  letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;font-family:var(--mono)}
+.form-control{
+  width:100%;padding:10px 14px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text-bright);font-size:14px;
+  font-family:var(--body);transition:all 0.2s;outline:none;
+}
+.form-control:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,212,255,0.1)}
+.form-control::placeholder{color:var(--text-dim)}
+select.form-control option{background:var(--surface2)}
+textarea.form-control{resize:vertical;min-height:100px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── TABLES ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-dim);font-family:var(--mono);padding:10px 14px;
+  border-bottom:1px solid var(--border);text-align:left;font-weight:600;
+  background:var(--surface2);
+}
+td{padding:12px 14px;border-bottom:1px solid rgba(26,48,80,0.5);font-size:13px;vertical-align:middle}
+tr:hover td{background:rgba(0,212,255,0.03)}
+tr:last-child td{border-bottom:none}
+
+/* ── BADGES / STATUS ── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:4px;font-size:10px;
+  font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);
+}
+.badge-pending{background:rgba(255,153,0,0.15);color:var(--orange);border:1px solid rgba(255,153,0,0.3)}
+.badge-investigating{background:rgba(0,102,255,0.15);color:#4d94ff;border:1px solid rgba(0,102,255,0.3)}
+.badge-resolved{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.3)}
+.badge-closed{background:rgba(74,106,138,0.15);color:var(--text-dim);border:1px solid var(--border)}
+.badge-high{background:rgba(255,51,85,0.15);color:var(--red);border:1px solid rgba(255,51,85,0.3)}
+.badge-medium{background:rgba(255,153,0,0.15);color:var(--orange);border:1px solid rgba(255,153,0,0.3)}
+.badge-low{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.3)}
+.badge::before{content:'●';font-size:6px}
+
+/* ── AI RESULT BOX ── */
+.ai-result-box{
+  background:linear-gradient(135deg,rgba(0,102,255,0.08),rgba(0,212,255,0.05));
+  border:1px solid rgba(0,212,255,0.25);border-radius:10px;padding:20px;
+  position:relative;overflow:hidden;
+}
+.ai-result-box::before{
+  content:'AI ANALYSIS';position:absolute;top:12px;right:14px;
+  font-size:9px;letter-spacing:2px;color:var(--accent);font-family:var(--mono);opacity:0.6;
+}
+.ai-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.ai-metric{background:rgba(0,0,0,0.3);border-radius:6px;padding:12px;text-align:center}
+.ai-metric-val{font-family:var(--head);font-size:20px;font-weight:700;color:var(--accent)}
+.ai-metric-label{font-size:10px;color:var(--text-dim);margin-top:2px;font-family:var(--mono)}
+.confidence-bar{height:4px;background:var(--surface3);border-radius:2px;margin-top:8px;overflow:hidden}
+.confidence-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:2px;transition:width 1s ease}
+.ai-insight{font-size:13px;color:var(--text);line-height:1.7;border-top:1px solid rgba(0,212,255,0.15);padding-top:14px;margin-top:4px}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);
+  z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  width:min(680px,94vw);max-height:90vh;overflow-y:auto;
+  animation:slideUp 0.3s ease;position:relative;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-family:var(--head);font-size:20px;font-weight:700;color:var(--text-bright);letter-spacing:1px}
+.modal-close{background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;line-height:1;padding:4px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px 24px 24px}
+
+/* ── AUTH SCREEN ── */
+#auth-screen{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;z-index:500;
+}
+#auth-screen::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(0,102,255,0.12) 0%,transparent 70%);
+}
+.auth-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:40px;width:min(440px,94vw);position:relative;
+  box-shadow:0 0 60px rgba(0,102,255,0.15);
+}
+.auth-logo{
+  font-family:var(--head);font-size:32px;font-weight:700;color:var(--accent);
+  letter-spacing:4px;text-align:center;text-shadow:var(--glow);margin-bottom:6px;
+}
+.auth-tagline{text-align:center;font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-bottom:32px}
+.auth-tabs{display:flex;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:24px}
+.auth-tab{
+  flex:1;padding:8px;text-align:center;border-radius:6px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--text-dim);transition:all 0.2s;
+}
+.auth-tab.active{background:var(--surface3);color:var(--accent);border:1px solid var(--border)}
+.auth-form{display:none}
+.auth-form.active{display:block}
+.auth-submit{
+  width:100%;padding:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));
+  border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:var(--head);letter-spacing:2px;transition:all 0.2s;
+  box-shadow:0 0 20px rgba(0,102,255,0.4);margin-top:8px;
+}
+.auth-submit:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(0,102,255,0.6)}
+.auth-err{color:var(--red);font-size:12px;text-align:center;margin-top:10px;font-family:var(--mono)}
+.demo-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.demo-pill{
+  padding:5px 10px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;font-size:11px;cursor:pointer;color:var(--text-dim);
+  transition:all 0.2s;font-family:var(--mono);
+}
+.demo-pill:hover{border-color:var(--accent);color:var(--accent)}
+.demo-label{font-size:11px;color:var(--text-dim);margin-bottom:6px}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:24px;right:24px;z-index:9000;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast-msg{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:12px 18px;font-size:13px;min-width:260px;
+  display:flex;align-items:center;gap:10px;
+  animation:toastIn 0.3s ease;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.toast-msg.success{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.toast-msg.error{border-color:rgba(255,51,85,0.4);color:var(--red)}
+.toast-msg.info{border-color:rgba(0,212,255,0.4);color:var(--accent)}
+
+/* ── COMPLAINT DETAIL ── */
+.detail-section{margin-bottom:20px}
+.detail-section-title{
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-dim);font-family:var(--mono);margin-bottom:10px;
+  border-bottom:1px solid var(--border);padding-bottom:6px;
+}
+.detail-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.detail-key{color:var(--text-dim);min-width:140px;flex-shrink:0}
+.detail-val{color:var(--text-bright)}
+
+/* ── SEARCH & FILTER BAR ── */
+.filter-bar{display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-wrap input{padding-left:34px}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:14px}
+
+/* ── CHART CONTAINERS ── */
+.chart-container{position:relative;height:240px}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-dim);
+}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:0.3}
+.empty-title{font-family:var(--head);font-size:18px;margin-bottom:6px;color:var(--text)}
+.empty-sub{font-size:13px}
+
+/* ── TIMELINE ── */
+.timeline{position:relative;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:16px}
+.tl-dot{position:absolute;left:-24px;top:4px;width:14px;height:14px;border-radius:50%;background:var(--surface2);border:2px solid var(--accent);box-shadow:var(--glow)}
+.tl-content{font-size:13px}
+.tl-time{font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-bottom:2px}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border)}
+
+/* RESPONSIVE */
+@media(max-width:700px){
+  #sidebar{display:none}
+  .form-row{grid-template-columns:1fr}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .ai-grid{grid-template-columns:1fr}
+  .page{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">⚡ CYBERSHIELD</div>
+    <div class="auth-tagline">// AI-POWERED CYBERCRIME INVESTIGATION SYSTEM</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">LOGIN</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">REGISTER</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form" class="auth-form active">
+      <div class="demo-label">Quick demo access:</div>
+      <div class="demo-pills">
+        <div class="demo-pill" onclick="demoLogin('citizen')">👤 Citizen</div>
+        <div class="demo-pill" onclick="demoLogin('investigator')">🔍 Investigator</div>
+        <div class="demo-pill" onclick="demoLogin('admin')">⚙ Admin</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="login-email" placeholder="officer@cybershield.gov.in">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="auth-submit" onclick="doLogin()">ACCESS SYSTEM</button>
+      <div id="login-err" class="auth-err"></div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="register-form" class="auth-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" class="form-control" id="reg-name" placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="text" class="form-control" id="reg-phone" placeholder="10-digit number">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="reg-email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="reg-password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" id="reg-role">
+          <option value="citizen">Citizen (Report crimes)</option>
+          <option value="investigator">Investigator (Manage cases)</option>
+        </select>
+      </div>
+      <button class="auth-submit" onclick="doRegister()">CREATE ACCOUNT</button>
+      <div id="reg-err" class="auth-err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ MAIN APP -->
+<div id="topbar" style="display:none">
+  <div class="logo"><span class="logo-icon">⚡</span>CYBERSHIELD</div>
+  <div class="logo-sub">v2.0 // SECURE</div>
+  <div class="topbar-right">
+    <span class="status-dot"></span>
+    <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono)" id="clock"></span>
+    <div class="user-pill" onclick="navigate('settings')">
+      <div class="avatar" id="topbar-avatar">?</div>
+      <div>
+        <div id="topbar-username">—</div>
+        <div id="topbar-role">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="nav-section-label">MAIN</div>
+    <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">⬡</span> Dashboard
+    </div>
+
+    <div class="nav-section-label">CITIZEN</div>
+    <div class="nav-item" onclick="navigate('report')" id="nav-report">
+      <span class="nav-icon">📋</span> Report Crime
+    </div>
+    <div class="nav-item" onclick="navigate('mycases')" id="nav-mycases">
+      <span class="nav-icon">📂</span> My Cases
+    </div>
+    <div class="nav-item" onclick="navigate('notifications')" id="nav-notifications">
+      <span class="nav-icon">🔔</span> Notifications
+      <span class="nav-badge" id="notif-badge" style="display:none">0</span>
+    </div>
+
+    <div class="nav-section-label" id="inv-section" style="display:none">INVESTIGATOR</div>
+    <div class="nav-item" onclick="navigate('allcases')" id="nav-allcases" style="display:none">
+      <span class="nav-icon">🗂</span> All Cases
+    </div>
+    <div class="nav-item" onclick="navigate('analytics')" id="nav-analytics" style="display:none">
+      <span class="nav-icon">📊</span> AI Analytics
+    </div>
+
+    <div class="sidebar-footer">
+      <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:8px;text-align:center" id="sidebar-user-info"></div>
+      <button class="logout-btn" onclick="doLogout()">⏻ LOGOUT</button>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title" id="dash-greeting">COMMAND CENTER</div>
+        <div class="page-subtitle">// REAL-TIME CYBERCRIME MONITORING</div>
+      </div>
+      <div class="stats-grid" id="dash-stats"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">RECENT ACTIVITY</div>
+          </div>
+          <div id="dash-recent"></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">CRIME DISTRIBUTION</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="dash-pie-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPORT CRIME ── -->
+    <div class="page" id="page-report">
+      <div class="page-header">
+        <div class="page-title">REPORT CYBERCRIME</div>
+        <div class="page-subtitle">// SUBMIT A COMPLAINT — AI WILL AUTO-CLASSIFY</div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:20px">COMPLAINT DETAILS</div>
+          <div class="form-group">
+            <label class="form-label">Crime Category *</label>
+            <select class="form-control" id="rep-type">
+              <option value="">— Select Crime Type —</option>
+              <option>Phishing</option>
+              <option>Online Fraud</option>
+              <option>Identity Theft</option>
+              <option>Hacking</option>
+              <option>Cyberbullying</option>
+              <option>Banking Fraud</option>
+              <option>Ransomware</option>
+              <option>Social Media Abuse</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Describe what happened *</label>
+            <textarea class="form-control" id="rep-desc" rows="5" placeholder="Provide a detailed description of the incident..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input type="text" class="form-control" id="rep-location" placeholder="City / State">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date of Incident</label>
+              <input type="date" class="form-control" id="rep-date">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Evidence File (optional)</label>
+            <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s" 
+                 onclick="document.getElementById('rep-file').click()"
+                 id="file-drop-zone"
+                 ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+                 ondragleave="this.style.borderColor='var(--border)'"
+                 ondrop="handleFileDrop(event)">
+              <div style="font-size:28px;margin-bottom:8px">📎</div>
+              <div style="font-size:13px;color:var(--text-dim)">Click or drag file here<br><span style="font-size:11px">Images, PDFs supported</span></div>
+              <div id="file-name" style="font-size:12px;color:var(--accent);margin-top:8px;font-family:var(--mono)"></div>
+            </div>
+            <input type="file" id="rep-file" style="display:none" onchange="showFileName(this)" accept="image/*,.pdf">
+          </div>
+          <button class="btn btn-primary" onclick="submitComplaint()" style="width:100%;padding:12px;font-size:15px">
+            ⚡ SUBMIT COMPLAINT
+          </button>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title" style="margin-bottom:12px">AI PREVIEW</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;font-family:var(--mono)">
+              Type your description to see real-time AI classification
+            </div>
+            <div id="ai-preview">
+              <div class="empty-state" style="padding:20px">
+                <div class="empty-icon">🤖</div>
+                <div style="font-size:12px">Waiting for description...</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:12px">WHAT TO INCLUDE</div>
+            <div style="font-size:12px;color:var(--text-dim);line-height:2">
+              ✅ When and where it happened<br>
+              ✅ How you were contacted (phone/email/link)<br>
+              ✅ What information was shared<br>
+              ✅ Financial losses (amounts)<br>
+              ✅ Suspect details if available<br>
+              ✅ Screenshots / evidence files
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MY CASES ── -->
+    <div class="page" id="page-mycases">
+      <div class="page-header">
+        <div class="page-title">MY COMPLAINTS</div>
+        <div class="page-subtitle">// TRACK YOUR FILED CASES</div>
+        <div class="page-actions">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control" id="my-search" placeholder="Search complaints..." oninput="filterMyCases()">
+          </div>
+          <select class="form-control" style="width:160px" id="my-filter" onchange="filterMyCases()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="under_investigation">Investigating</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="navigate('report')">+ New</button>
+        </div>
+      </div>
+      <div id="my-cases-list"></div>
+    </div>
+
+    <!-- ── ALL CASES (Investigator) ── -->
+    <div class="page" id="page-allcases">
+      <div class="page-header">
+        <div class="page-title">ALL CASES</div>
+        <div class="page-subtitle">// INVESTIGATOR CASE MANAGEMENT</div>
+        <div class="page-actions">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-control" id="all-search" placeholder="Search all cases..." oninput="filterAllCases()">
+          </div>
+          <select class="form-control" style="width:160px" id="all-filter" onchange="filterAllCases()">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="under_investigation">Investigating</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+          <select class="form-control" style="width:160px" id="all-type-filter" onchange="filterAllCases()">
+            <option value="">All Types</option>
+            <option>Phishing</option><option>Online Fraud</option>
+            <option>Identity Theft</option><option>Hacking</option>
+            <option>Cyberbullying</option><option>Banking Fraud</option>
+          </select>
+        </div>
+      </div>
+      <div id="all-cases-list"></div>
+    </div>
+
+    <!-- ── ANALYTICS ── -->
+    <div class="page" id="page-analytics">
+      <div class="page-header">
+        <div class="page-title">AI ANALYTICS</div>
+        <div class="page-subtitle">// PATTERN DETECTION & CRIME INTELLIGENCE</div>
+      </div>
+      <div id="pattern-alert" style="display:none;background:rgba(255,51,85,0.08);border:1px solid rgba(255,51,85,0.3);border-radius:8px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--red)"></div>
+      <div class="stats-grid" id="analytics-stats"></div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">CRIME TYPE DISTRIBUTION</div></div>
+          <div class="chart-container"><canvas id="pie-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">SEVERITY BREAKDOWN</div></div>
+          <div class="chart-container"><canvas id="sev-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">MONTHLY TREND</div></div>
+        <div class="chart-container" style="height:200px"><canvas id="bar-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── NOTIFICATIONS ── -->
+    <div class="page" id="page-notifications">
+      <div class="page-header">
+        <div class="page-title">NOTIFICATIONS</div>
+        <div class="page-subtitle">// CASE UPDATES & ALERTS</div>
+        <div class="page-actions">
+          <button class="btn btn-outline btn-sm" onclick="markAllRead()">Mark all read</button>
+        </div>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div class="page-title">PROFILE</div>
+        <div class="page-subtitle">// ACCOUNT SETTINGS</div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:20px">USER PROFILE</div>
+          <div style="text-align:center;margin-bottom:24px">
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#fff;margin:0 auto 12px" id="profile-avatar"></div>
+            <div style="font-size:18px;font-weight:700;color:var(--text-bright)" id="profile-name"></div>
+            <div style="font-size:12px;color:var(--text-dim);font-family:var(--mono)" id="profile-role-display"></div>
+          </div>
+          <div class="detail-row"><span class="detail-key">Email</span><span class="detail-val" id="profile-email"></span></div>
+          <div class="detail-row"><span class="detail-key">Phone</span><span class="detail-val" id="profile-phone"></span></div>
+          <div class="detail-row"><span class="detail-key">Role</span><span class="detail-val" id="profile-role"></span></div>
+          <div class="detail-row"><span class="detail-key">Member since</span><span class="detail-val" id="profile-since"></span></div>
+          <div class="detail-row"><span class="detail-key">Cases filed</span><span class="detail-val" id="profile-cases"></span></div>
+          <button class="btn btn-danger btn-sm" style="margin-top:20px;width:100%" onclick="doLogout()">⏻ LOGOUT</button>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:20px">SYSTEM INFO</div>
+          <div class="detail-row"><span class="detail-key">System</span><span class="detail-val" style="color:var(--green)">ONLINE ●</span></div>
+          <div class="detail-row"><span class="detail-key">AI Engine</span><span class="detail-val">NLP v2.0</span></div>
+          <div class="detail-row"><span class="detail-key">Database</span><span class="detail-val">LocalDB (Demo)</span></div>
+          <div class="detail-row"><span class="detail-key">Crime Categories</span><span class="detail-val">9 types</span></div>
+          <div class="detail-row"><span class="detail-key">Detection Model</span><span class="detail-val">Keyword NLP</span></div>
+          <div class="detail-row"><span class="detail-key">Version</span><span class="detail-val">CyberShield 2.0</span></div>
+          <div style="margin-top:20px;padding:12px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--text-dim);font-family:var(--mono);line-height:1.8">
+            BCA FINAL YEAR PROJECT<br>
+            AI Cybercrime Investigation<br>
+            Management System<br>
+            Platform: Web (Offline Demo)<br>
+            Stack: HTML/CSS/JS + NLP AI
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════ MODALS -->
+
+<!-- Case Detail Modal -->
+<div class="modal-overlay" id="case-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-complaint-id">CASE #</div>
+      <button class="modal-close" onclick="closeModal('case-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="case-modal-body"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATABASE (localStorage-backed)
+// ═══════════════════════════════════════════════════════════════
+const DB = {
+  users: JSON.parse(localStorage.getItem('cs_users') || '[]'),
+  complaints: JSON.parse(localStorage.getItem('cs_complaints') || '[]'),
+  notifications: JSON.parse(localStorage.getItem('cs_notifs') || '[]'),
+
+  save() {
+    localStorage.setItem('cs_users', JSON.stringify(this.users));
+    localStorage.setItem('cs_complaints', JSON.stringify(this.complaints));
+    localStorage.setItem('cs_notifs', JSON.stringify(this.notifications));
+  },
+
+  seedIfEmpty() {
+    if (this.users.length === 0) {
+      // Seed demo users
+      this.users = [
+        { uid:'u1', name:'Rahul Sharma', email:'citizen@demo.com', password:'demo123', phone:'9876543210', role:'citizen', createdAt: Date.now()-86400000*30 },
+        { uid:'u2', name:'Inspector Priya', email:'investigator@demo.com', password:'demo123', phone:'9876500000', role:'investigator', createdAt: Date.now()-86400000*60 },
+        { uid:'u3', name:'Admin Kumar', email:'admin@demo.com', password:'demo123', phone:'9999999999', role:'admin', createdAt: Date.now()-86400000*90 }
+      ];
+
+      // Seed demo complaints
+      const now = Date.now();
+      this.complaints = [
+        { complaintId:'CYB-1001', userId:'u1', description:'I received an OTP from a fake bank link claiming my account is suspended. I entered my details but then realized it was a fraud.', crimeType:'Phishing', location:'Mumbai', dateOfIncident:'2024-01-15', status:'resolved', submittedAt:now-86400000*25, aiAnalyzed:true, aiCrimeType:'Phishing', aiConfidence:91.5, aiSeverity:'high', aiInsight:'Clear phishing attack with OTP theft. Victim clicked fraudulent bank link. Investigators should trace origin URL and report to CERT-In.', assignedTo:'u2', evidenceUrl:null },
+        { complaintId:'CYB-1002', userId:'u1', description:'Someone hacked my Instagram account and changed the password and email. They are posting fake content and demanding money.', crimeType:'Hacking', location:'Delhi', dateOfIncident:'2024-01-20', status:'under_investigation', submittedAt:now-86400000*18, aiAnalyzed:true, aiCrimeType:'Hacking', aiConfidence:88.0, aiSeverity:'high', aiInsight:'Account takeover via credential stuffing or phishing. Request platform access logs and IP history from Instagram.', assignedTo:'u2', evidenceUrl:null },
+        { complaintId:'CYB-1003', userId:'u1', description:'I ordered a product online worth Rs.5000 but never received it. The seller has disappeared from the platform.', crimeType:'Online Fraud', location:'Bangalore', dateOfIncident:'2024-02-01', status:'pending', submittedAt:now-86400000*10, aiAnalyzed:true, aiCrimeType:'Online Fraud', aiConfidence:82.3, aiSeverity:'medium', aiInsight:'E-commerce fraud detected. Verify seller registration, trace payment transaction ID, and check for similar complaints.', assignedTo:null, evidenceUrl:null },
+        { complaintId:'CYB-1004', userId:'u1', description:'Unknown transaction of Rs.25000 was debited from my account without my knowledge. I did not receive any OTP.', crimeType:'Banking Fraud', location:'Chennai', dateOfIncident:'2024-02-05', status:'pending', submittedAt:now-86400000*5, aiAnalyzed:true, aiCrimeType:'Banking Fraud', aiConfidence:94.1, aiSeverity:'high', aiInsight:'High-severity banking fraud. Card may be cloned. Advise victim to freeze account immediately. Contact bank for chargeback.', assignedTo:null, evidenceUrl:null },
+        { complaintId:'CYB-1005', userId:'u1', description:'Someone is sending me threatening and abusive messages on WhatsApp. They have morphed my photos and are blackmailing me.', crimeType:'Cyberbullying', location:'Pune', dateOfIncident:'2024-02-08', status:'under_investigation', submittedAt:now-86400000*3, aiAnalyzed:true, aiCrimeType:'Cyberbullying', aiConfidence:87.6, aiSeverity:'high', aiInsight:'Cyberbullying with blackmail and image morphing. This is a criminal offense under IT Act. Collect evidence of all communications.', assignedTo:'u2', evidenceUrl:null },
+        { complaintId:'CYB-1006', userId:'u1', description:'My Aadhaar card details were used to take a loan without my knowledge. The bank is asking me to repay.', crimeType:'Identity Theft', location:'Hyderabad', dateOfIncident:'2024-02-10', status:'pending', submittedAt:now-86400000*1, aiAnalyzed:true, aiCrimeType:'Identity Theft', aiConfidence:89.9, aiSeverity:'high', aiInsight:'Aadhaar-based identity fraud. File complaint with UIDAI and bank. Freeze Aadhaar biometrics immediately on UIDAI portal.', assignedTo:null, evidenceUrl:null },
+      ];
+
+      this.notifications = [
+        { id:'n1', userId:'u1', title:'Case CYB-1001 Resolved', message:'Your complaint about Phishing has been resolved by the investigation team.', type:'complaint_update', read:false, createdAt:now-86400000*2 },
+        { id:'n2', userId:'u1', title:'Investigator Assigned', message:'Inspector Priya has been assigned to your case CYB-1002.', type:'case_assigned', read:false, createdAt:now-86400000*5 },
+        { id:'n3', userId:'u1', title:'AI Analysis Complete', message:'AI has analyzed your complaint CYB-1003 and classified it as Online Fraud.', type:'ai_update', read:true, createdAt:now-86400000*9 },
+      ];
+      this.save();
+    }
+  }
+};
+DB.seedIfEmpty();
+
+// ═══════════════════════════════════════════════════════════════
+// AI ENGINE
+// ═══════════════════════════════════════════════════════════════
+const AI = {
+  keywords: {
+    'Phishing':       ['otp','one time password','bank link','verify account','click here','account suspended','login link','fake email','credential','suspicious link','fake website','phishing','spoofed','smishing'],
+    'Online Fraud':   ['money transfer','upi fraud','fake product','lottery','prize','online shopping','payment fraud','advance fee','refund','never received','seller disappeared','scam','cod fraud'],
+    'Identity Theft': ['aadhaar','pan card','impersonation','documents misused','identity','personal details','fake profile','someone using my name','stolen documents','misuse'],
+    'Hacking':        ['hacked','unauthorized access','ransomware','data breach','password changed','account compromised','malware','virus','remote access','trojan','brute force','ddos'],
+    'Cyberbullying':  ['harassment','blackmail','threatening','morphed image','cyberbullying','abusive','bullying','trolling','revenge','deepfake','stalking','threatening messages','intimidation'],
+    'Banking Fraud':  ['atm fraud','card cloned','unauthorized transaction','debit card','credit card','bank account','debited','unknown withdrawal','skimming','card stolen','banking fraud','upi'],
+  },
+  severityHigh:  ['ransomware','large amount','lakh','crore','blackmail','morphed','threatening','critical','account emptied','25000','50000','100000'],
+  severityLow:   ['suspicious','possible','might be','unsure','minor'],
+
+  analyze(text) {
+    const t = text.toLowerCase().replace(/[^\w\s]/g,' ');
+    const scores = {}, matched = {};
+    for (const [type, kws] of Object.entries(this.keywords)) {
+      let s = 0; const hits = [];
+      for (const kw of kws) { if (t.includes(kw)) { s++; hits.push(kw); } }
+      scores[type] = s; matched[type] = hits;
+    }
+    const top = Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+    const topType = top[1] > 0 ? top[0] : 'Other';
+    const total = Object.values(scores).reduce((a,b)=>a+b,0);
+    const confidence = total > 0 ? Math.min(98, Math.round((scores[topType]||0)/total*100*10)/10 + Math.random()*5) : 45 + Math.random()*20;
+
+    let severity = 'medium';
+    for (const kw of this.severityHigh) { if (t.includes(kw)) { severity = 'high'; break; } }
+    if (severity !== 'high') { for (const kw of this.severityLow) { if (t.includes(kw)) { severity = 'low'; break; } } }
+
+    const insights = {
+      'Phishing': 'Clear phishing attack indicators detected. Victim likely lured via fraudulent link requesting credentials or OTP. Trace origin URL/phone number and report to CERT-In.',
+      'Online Fraud': 'E-commerce/payment fraud detected. Verify seller registration and payment transaction ID. Check for similar complaints from the same seller account.',
+      'Identity Theft': 'Identity fraud indicators present. File complaint with UIDAI if Aadhaar-related. Freeze biometrics on UIDAI portal and notify relevant banks immediately.',
+      'Hacking': 'Account takeover or unauthorized system access detected. Request access logs and IP history from platform. Trace unauthorized login location.',
+      'Cyberbullying': 'Online harassment and potential blackmail detected — serious criminal offense under IT Act. Collect all evidence of communications before perpetrator deletes.',
+      'Banking Fraud': 'HIGH PRIORITY: Unauthorized banking transaction. Advise victim to freeze account immediately and file chargeback request. Trace recipient account.',
+      'Other': 'Manual review recommended. The complaint does not clearly match standard categories. Assign to general cybercrime unit for classification.',
+    };
+
+    return {
+      crimeType: topType,
+      confidence: Math.round(confidence * 10) / 10,
+      severity,
+      matchedKeywords: matched[topType] || [],
+      insight: insights[topType] || insights['Other']
+    };
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let currentUser = null;
+let currentPage = 'dashboard';
+let dashPieChart = null, pieChart = null, barChart = null, sevChart = null;
+
+// ═══════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function toast(msg, type='info') {
+  const icons = {success:'✅',error:'❌',info:'ℹ️'};
+  const el = document.createElement('div');
+  el.className = `toast-msg ${type}`;
+  el.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) =>
+    t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').classList.toggle('active', tab==='login');
+  document.getElementById('register-form').classList.toggle('active', tab==='register');
+}
+
+function demoLogin(role) {
+  const map = { citizen:'citizen@demo.com', investigator:'investigator@demo.com', admin:'admin@demo.com' };
+  document.getElementById('login-email').value = map[role];
+  document.getElementById('login-password').value = 'demo123';
+  doLogin();
+}
+
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const err = document.getElementById('login-err');
+
+  if (!email || !pass) { err.textContent = 'Please enter email and password'; return; }
+
+  const user = DB.users.find(u => u.email === email && u.password === pass);
+  if (!user) { err.textContent = '⚠ Invalid credentials'; return; }
+
+  loginSuccess(user);
+}
+
+function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const pass = document.getElementById('reg-password').value;
+  const role = document.getElementById('reg-role').value;
+  const err = document.getElementById('reg-err');
+
+  if (!name || !email || !pass) { err.textContent = 'All fields required'; return; }
+  if (pass.length < 6) { err.textContent = 'Password must be 6+ characters'; return; }
+  if (DB.users.find(u => u.email === email)) { err.textContent = 'Email already registered'; return; }
+
+  const user = {
+    uid: 'u' + Date.now(),
+    name, email, phone, password: pass, role,
+    createdAt: Date.now()
+  };
+  DB.users.push(user);
+  DB.save();
+  toast('Account created! Welcome to CyberShield', 'success');
+  loginSuccess(user);
+}
+
+function loginSuccess(user) {
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('topbar-username').textContent = user.name;
+  document.getElementById('topbar-role').textContent = user.role.toUpperCase();
+  document.getElementById('topbar-avatar').textContent = user.name[0].toUpperCase();
+
+  // Show investigator nav if applicable
+  const isInv = user.role === 'investigator' || user.role === 'admin';
+  document.getElementById('inv-section').style.display = isInv ? 'block' : 'none';
+  document.getElementById('nav-allcases').style.display = isInv ? 'flex' : 'none';
+  document.getElementById('nav-analytics').style.display = isInv ? 'flex' : 'none';
+
+  document.getElementById('sidebar-user-info').textContent = user.email;
+  navigate('dashboard');
+  updateNotifBadge();
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-err').textContent = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+
+  currentPage = page;
+
+  if (page === 'dashboard') renderDashboard();
+  else if (page === 'mycases') renderMyCases();
+  else if (page === 'allcases') renderAllCases();
+  else if (page === 'analytics') renderAnalytics();
+  else if (page === 'notifications') renderNotifications();
+  else if (page === 'settings') renderSettings();
+  else if (page === 'report') {
+    document.getElementById('rep-desc').oninput = () => {
+      const txt = document.getElementById('rep-desc').value;
+      if (txt.length > 20) renderAiPreview(txt);
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const uid = currentUser.uid;
+  const myCases = DB.complaints.filter(c => c.userId === uid);
+  const allCases = DB.complaints;
+  const isInv = currentUser.role !== 'citizen';
+
+  document.getElementById('dash-greeting').textContent =
+    `WELCOME BACK, ${currentUser.name.toUpperCase().split(' ')[0]}`;
+
+  const cases = isInv ? allCases : myCases;
+  const pending = cases.filter(c=>c.status==='pending').length;
+  const resolved = cases.filter(c=>c.status==='resolved').length;
+  const investigating = cases.filter(c=>c.status==='under_investigation').length;
+
+  const statsHTML = [
+    { label: isInv ? 'Total Cases' : 'My Cases', val: cases.length, cls:'blue', icon:'📁' },
+    { label: 'Pending', val: pending, cls:'orange', icon:'⏳' },
+    { label: 'Investigating', val: investigating, cls:'purple', icon:'🔍' },
+    { label: 'Resolved', val: resolved, cls:'green', icon:'✅' },
+  ].map(s => `
+    <div class="stat-card ${s.cls}">
+      <div class="stat-icon">${s.icon}</div>
+      <div class="stat-num">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+  document.getElementById('dash-stats').innerHTML = statsHTML;
+
+  // Recent activity
+  const recent = (isInv ? allCases : myCases)
+    .sort((a,b) => b.submittedAt - a.submittedAt).slice(0,5);
+  document.getElementById('dash-recent').innerHTML = recent.length ? `
+    <div class="timeline">
+      ${recent.map(c => `
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-content">
+            <div class="tl-time">${fmtDate(c.submittedAt)} · ${c.crimeType}</div>
+            <div style="font-size:13px;color:var(--text);cursor:pointer" onclick="showCaseDetail('${c.complaintId}')">
+              <span style="color:var(--accent);font-family:var(--mono)">${c.complaintId}</span>
+              — ${c.description.substring(0,60)}...
+            </div>
+            <div style="margin-top:4px">${statusBadge(c.status)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : '<div class="empty-state"><div class="empty-icon">📭</div><div>No activity yet</div></div>';
+
+  // Pie chart
+  const typeCounts = {};
+  cases.forEach(c => { const t = c.aiCrimeType||c.crimeType; typeCounts[t]=(typeCounts[t]||0)+1; });
+  if (dashPieChart) { dashPieChart.destroy(); dashPieChart = null; }
+  if (Object.keys(typeCounts).length > 0) {
+    dashPieChart = new Chart(document.getElementById('dash-pie-chart'), {
+      type:'doughnut',
+      data: {
+        labels: Object.keys(typeCounts),
+        datasets:[{ data: Object.values(typeCounts),
+          backgroundColor:['#0066ff','#00d4ff','#00ff88','#ff9900','#ff3355','#9d4edd','#ffe033'],
+          borderWidth:0 }]
+      },
+      options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#4a6a8a', font:{size:11} } } },
+        cutout:'65%', animation:{ duration:800 } }
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REPORT CRIME
+// ═══════════════════════════════════════════════════════════════
+function showFileName(input) {
+  if (input.files[0]) {
+    document.getElementById('file-name').textContent = '📎 ' + input.files[0].name;
+  }
+}
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('file-drop-zone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) document.getElementById('file-name').textContent = '📎 ' + file.name;
+}
+
+function renderAiPreview(text) {
+  const result = AI.analyze(text);
+  const conf = result.confidence;
+  document.getElementById('ai-preview').innerHTML = `
+    <div class="ai-result-box">
+      <div class="ai-grid">
+        <div class="ai-metric">
+          <div class="ai-metric-val">${result.crimeType}</div>
+          <div class="ai-metric-label">Predicted Type</div>
+        </div>
+        <div class="ai-metric">
+          <div class="ai-metric-val">${conf}%</div>
+          <div class="ai-metric-label">Confidence</div>
+          <div class="confidence-bar"><div class="confidence-fill" style="width:${conf}%"></div></div>
+        </div>
+        <div class="ai-metric">
+          <div class="ai-metric-val ${result.severity==='high'?'':''}">
+            <span class="badge badge-${result.severity}">${result.severity}</span>
+          </div>
+          <div class="ai-metric-label">Severity</div>
+        </div>
+      </div>
+      ${result.matchedKeywords.length ? `<div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-bottom:10px">KEYWORDS: ${result.matchedKeywords.join(' · ')}</div>` : ''}
+      <div class="ai-insight">${result.insight}</div>
+    </div>`;
+}
+
+function submitComplaint() {
+  const type = document.getElementById('rep-type').value;
+  const desc = document.getElementById('rep-desc').value.trim();
+  const loc = document.getElementById('rep-location').value.trim();
+  const date = document.getElementById('rep-date').value;
+
+  if (!type) { toast('Please select a crime type', 'error'); return; }
+  if (desc.length < 20) { toast('Please provide a more detailed description (20+ chars)', 'error'); return; }
+
+  const id = 'CYB-' + (1000 + DB.complaints.length + 1);
+  const ai = AI.analyze(desc);
+
+  const complaint = {
+    complaintId: id,
+    userId: currentUser.uid,
+    description: desc,
+    crimeType: type,
+    location: loc,
+    dateOfIncident: date,
+    status: 'pending',
+    submittedAt: Date.now(),
+    aiAnalyzed: true,
+    aiCrimeType: ai.crimeType,
+    aiConfidence: ai.confidence,
+    aiSeverity: ai.severity,
+    aiInsight: ai.insight,
+    assignedTo: null,
+    evidenceUrl: null,
+  };
+
+  DB.complaints.push(complaint);
+
+  // Add notification
+  DB.notifications.push({
+    id: 'n' + Date.now(),
+    userId: currentUser.uid,
+    title: 'Complaint Filed: ' + id,
+    message: `Your complaint about ${type} has been filed and AI analysis is complete.`,
+    type: 'ai_update',
+    read: false,
+    createdAt: Date.now()
+  });
+
+  DB.save();
+  updateNotifBadge();
+
+  // Reset form
+  document.getElementById('rep-type').value = '';
+  document.getElementById('rep-desc').value = '';
+  document.getElementById('rep-location').value = '';
+  document.getElementById('rep-date').value = '';
+  document.getElementById('file-name').textContent = '';
+  document.getElementById('ai-preview').innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">🤖</div><div style="font-size:12px">Waiting for description...</div></div>`;
+
+  toast(`Complaint ${id} submitted! AI classified as: ${ai.crimeType}`, 'success');
+  setTimeout(() => navigate('mycases'), 1200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASES
+// ═══════════════════════════════════════════════════════════════
+function buildCasesTable(cases, showUser=false) {
+  if (!cases.length) return `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No cases found</div><div class="empty-sub">Adjust your search or filters</div></div>`;
+  return `
+    <div class="card" style="padding:0">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Case ID</th>
+            ${showUser ? '<th>Reporter</th>' : ''}
+            <th>Type</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Severity</th>
+            <th>Date</th>
+            <th></th>
+          </tr></thead>
+          <tbody>
+            ${cases.map(c => {
+              const reporter = DB.users.find(u => u.uid === c.userId);
+              return `
+              <tr>
+                <td><span style="font-family:var(--mono);font-size:12px;color:var(--accent)">${c.complaintId}</span></td>
+                ${showUser ? `<td style="font-size:12px">${reporter?.name||'Unknown'}</td>` : ''}
+                <td style="font-size:12px">${c.aiCrimeType||c.crimeType}</td>
+                <td style="max-width:220px;font-size:12px;color:var(--text-dim)">${c.description.substring(0,70)}...</td>
+                <td>${statusBadge(c.status)}</td>
+                <td>${c.aiSeverity ? `<span class="badge badge-${c.aiSeverity}">${c.aiSeverity}</span>` : '—'}</td>
+                <td style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${fmtDate(c.submittedAt)}</td>
+                <td><button class="btn btn-outline btn-sm" onclick="showCaseDetail('${c.complaintId}')">VIEW</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderMyCases() {
+  const cases = DB.complaints.filter(c => c.userId === currentUser.uid)
+    .sort((a,b) => b.submittedAt - a.submittedAt);
+  document.getElementById('my-cases-list').innerHTML = buildCasesTable(cases, false);
+}
+
+function filterMyCases() {
+  const q = document.getElementById('my-search').value.toLowerCase();
+  const f = document.getElementById('my-filter').value;
+  let cases = DB.complaints.filter(c => c.userId === currentUser.uid);
+  if (f) cases = cases.filter(c => c.status === f);
+  if (q) cases = cases.filter(c => c.complaintId.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || c.crimeType.toLowerCase().includes(q));
+  document.getElementById('my-cases-list').innerHTML = buildCasesTable(cases.sort((a,b)=>b.submittedAt-a.submittedAt));
+}
+
+function renderAllCases() {
+  const cases = DB.complaints.sort((a,b) => b.submittedAt - a.submittedAt);
+  document.getElementById('all-cases-list').innerHTML = buildCasesTable(cases, true);
+}
+
+function filterAllCases() {
+  const q = document.getElementById('all-search').value.toLowerCase();
+  const f = document.getElementById('all-filter').value;
+  const tf = document.getElementById('all-type-filter').value;
+  let cases = DB.complaints;
+  if (f) cases = cases.filter(c => c.status === f);
+  if (tf) cases = cases.filter(c => (c.aiCrimeType||c.crimeType) === tf);
+  if (q) cases = cases.filter(c => c.complaintId.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
+  document.getElementById('all-cases-list').innerHTML = buildCasesTable(cases.sort((a,b)=>b.submittedAt-a.submittedAt), true);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CASE DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════
+function showCaseDetail(id) {
+  const c = DB.complaints.find(x => x.complaintId === id);
+  if (!c) return;
+  const isInv = currentUser.role !== 'citizen';
+  const reporter = DB.users.find(u => u.uid === c.userId);
+  const assignee = c.assignedTo ? DB.users.find(u => u.uid === c.assignedTo) : null;
+
+  document.getElementById('modal-complaint-id').textContent = c.complaintId;
+
+  const updateOptions = isInv ? `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <select id="modal-status-sel" class="form-control" style="flex:1;min-width:160px">
+        <option value="pending" ${c.status==='pending'?'selected':''}>Pending</option>
+        <option value="under_investigation" ${c.status==='under_investigation'?'selected':''}>Under Investigation</option>
+        <option value="resolved" ${c.status==='resolved'?'selected':''}>Resolved</option>
+        <option value="closed" ${c.status==='closed'?'selected':''}>Closed</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="updateCaseStatus('${id}')">UPDATE STATUS</button>
+      ${!c.assignedTo ? `<button class="btn btn-success btn-sm" onclick="assignToSelf('${id}')">ASSIGN TO ME</button>` : ''}
+    </div>` : '';
+
+  document.getElementById('case-modal-body').innerHTML = `
+    <div class="detail-section">
+      <div class="detail-section-title">COMPLAINT INFO</div>
+      <div class="detail-row"><span class="detail-key">Case ID</span><span class="detail-val" style="font-family:var(--mono);color:var(--accent)">${c.complaintId}</span></div>
+      <div class="detail-row"><span class="detail-key">Status</span><span class="detail-val">${statusBadge(c.status)}</span></div>
+      <div class="detail-row"><span class="detail-key">Crime Type</span><span class="detail-val">${c.crimeType}</span></div>
+      <div class="detail-row"><span class="detail-key">Location</span><span class="detail-val">${c.location||'Not provided'}</span></div>
+      <div class="detail-row"><span class="detail-key">Date of Incident</span><span class="detail-val">${c.dateOfIncident||'Not provided'}</span></div>
+      <div class="detail-row"><span class="detail-key">Submitted</span><span class="detail-val">${new Date(c.submittedAt).toLocaleString('en-IN')}</span></div>
+      ${isInv ? `<div class="detail-row"><span class="detail-key">Reporter</span><span class="detail-val">${reporter?.name||'Unknown'} (${reporter?.email||''})</span></div>` : ''}
+      <div class="detail-row"><span class="detail-key">Assigned To</span><span class="detail-val">${assignee?.name||'Unassigned'}</span></div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">DESCRIPTION</div>
+      <div style="font-size:13px;line-height:1.8;color:var(--text);background:var(--surface2);padding:14px;border-radius:6px">${c.description}</div>
+    </div>
+
+    ${c.aiAnalyzed ? `
+    <div class="detail-section">
+      <div class="detail-section-title">AI ANALYSIS RESULT</div>
+      <div class="ai-result-box">
+        <div class="ai-grid">
+          <div class="ai-metric">
+            <div class="ai-metric-val" style="font-size:14px">${c.aiCrimeType}</div>
+            <div class="ai-metric-label">Classified As</div>
+          </div>
+          <div class="ai-metric">
+            <div class="ai-metric-val">${c.aiConfidence}%</div>
+            <div class="ai-metric-label">Confidence</div>
+            <div class="confidence-bar"><div class="confidence-fill" style="width:${c.aiConfidence}%"></div></div>
+          </div>
+          <div class="ai-metric">
+            <div class="ai-metric-val"><span class="badge badge-${c.aiSeverity}">${c.aiSeverity}</span></div>
+            <div class="ai-metric-label">Severity</div>
+          </div>
+        </div>
+        <div class="ai-insight">${c.aiInsight}</div>
+      </div>
+    </div>` : ''}
+
+    ${isInv ? `<div class="detail-section"><div class="detail-section-title">INVESTIGATOR ACTIONS</div>${updateOptions}</div>` : ''}
+  `;
+
+  document.getElementById('case-modal').classList.add('open');
+}
+
+function updateCaseStatus(id) {
+  const status = document.getElementById('modal-status-sel').value;
+  const c = DB.complaints.find(x => x.complaintId === id);
+  if (!c) return;
+  const oldStatus = c.status;
+  c.status = status;
+  DB.save();
+
+  // Notify user
+  DB.notifications.push({
+    id: 'n' + Date.now(),
+    userId: c.userId,
+    title: `Case ${id} Updated`,
+    message: `Your case has been updated from ${oldStatus.replace('_',' ')} to ${status.replace('_',' ')}.`,
+    type: 'complaint_update',
+    read: false,
+    createdAt: Date.now()
+  });
+  DB.save();
+
+  toast(`Case ${id} status → ${status}`, 'success');
+  closeModal('case-modal');
+  if (currentPage === 'allcases') renderAllCases();
+  if (currentPage === 'mycases') renderMyCases();
+}
+
+function assignToSelf(id) {
+  const c = DB.complaints.find(x => x.complaintId === id);
+  if (!c) return;
+  c.assignedTo = currentUser.uid;
+  c.status = 'under_investigation';
+  DB.save();
+  toast(`Assigned to you & status set to Under Investigation`, 'success');
+  closeModal('case-modal');
+  renderAllCases();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS
+// ═══════════════════════════════════════════════════════════════
+function renderAnalytics() {
+  const cases = DB.complaints;
+
+  // Stats
+  const high = cases.filter(c=>c.aiSeverity==='high').length;
+  const resolved = cases.filter(c=>c.status==='resolved').length;
+  const analysed = cases.filter(c=>c.aiAnalyzed).length;
+  document.getElementById('analytics-stats').innerHTML = [
+    { label:'Total Cases', val:cases.length, cls:'blue', icon:'📁' },
+    { label:'High Severity', val:high, cls:'red', icon:'🔴' },
+    { label:'Resolved', val:resolved, cls:'green', icon:'✅' },
+    { label:'AI Analysed', val:analysed, cls:'purple', icon:'🤖' },
+  ].map(s=>`<div class="stat-card ${s.cls}"><div class="stat-icon">${s.icon}</div><div class="stat-num">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+
+  // Crime type counts
+  const typeCounts = {};
+  cases.forEach(c=>{ const t=c.aiCrimeType||c.crimeType; typeCounts[t]=(typeCounts[t]||0)+1; });
+
+  // Pattern detection
+  const topEntry = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1])[0];
+  const alertEl = document.getElementById('pattern-alert');
+  if (topEntry && topEntry[1] >= 2) {
+    alertEl.style.display = 'block';
+    alertEl.innerHTML = `⚠️ PATTERN DETECTED: <strong>${topEntry[0]}</strong> is the most frequent crime type with <strong>${topEntry[1]} cases</strong>. Consider coordinated response.`;
+  } else { alertEl.style.display = 'none'; }
+
+  // Severity counts
+  const sevCounts = { high:0, medium:0, low:0 };
+  cases.forEach(c => { if(c.aiSeverity) sevCounts[c.aiSeverity]++; });
+
+  // Monthly counts
+  const monthly = {};
+  cases.forEach(c => {
+    const d = new Date(c.submittedAt);
+    const k = `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+    monthly[k] = (monthly[k]||0)+1;
+  });
+
+  const COLORS = ['#0066ff','#00d4ff','#00ff88','#ff9900','#ff3355','#9d4edd','#ffe033'];
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pie-chart'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(typeCounts), datasets:[{ data:Object.values(typeCounts), backgroundColor:COLORS, borderWidth:0 }] },
+    options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#4a6a8a', font:{size:11} } } }, cutout:'60%', animation:{duration:800} }
+  });
+
+  if (sevChart) sevChart.destroy();
+  sevChart = new Chart(document.getElementById('sev-chart'), {
+    type:'pie',
+    data:{ labels:['High','Medium','Low'], datasets:[{ data:[sevCounts.high,sevCounts.medium,sevCounts.low], backgroundColor:['#ff3355','#ff9900','#00ff88'], borderWidth:0 }] },
+    options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#4a6a8a', font:{size:11} } } }, animation:{duration:800} }
+  });
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('bar-chart'), {
+    type:'bar',
+    data:{ labels:Object.keys(monthly), datasets:[{ label:'Complaints', data:Object.values(monthly),
+      backgroundColor:'rgba(0,102,255,0.6)', borderColor:'#0066ff', borderWidth:1, borderRadius:4 }] },
+    options:{
+      plugins:{ legend:{ labels:{ color:'#4a6a8a' } } },
+      scales:{ x:{ ticks:{color:'#4a6a8a'}, grid:{color:'rgba(26,48,80,0.4)'} },
+               y:{ ticks:{color:'#4a6a8a',stepSize:1}, grid:{color:'rgba(26,48,80,0.4)'} } },
+      animation:{duration:800}
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+function renderNotifications() {
+  const notifs = DB.notifications
+    .filter(n => n.userId === currentUser.uid)
+    .sort((a,b) => b.createdAt - a.createdAt);
+
+  const icons = { complaint_update:'📋', case_assigned:'🔍', ai_update:'🤖', alert:'⚠️' };
+
+  document.getElementById('notif-list').innerHTML = notifs.length ? `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${notifs.map(n => `
+        <div style="background:var(--surface);border:1px solid ${n.read?'var(--border)':'rgba(0,212,255,0.3)'};border-radius:10px;padding:16px;display:flex;gap:14px;align-items:flex-start;${n.read?'':'box-shadow:0 0 10px rgba(0,212,255,0.08)'}">
+          <div style="font-size:24px;flex-shrink:0">${icons[n.type]||'📢'}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;color:${n.read?'var(--text)':'var(--text-bright)'};margin-bottom:4px">${n.title} ${!n.read?'<span style="background:var(--accent);color:#000;font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);margin-left:6px">NEW</span>':''}</div>
+            <div style="font-size:13px;color:var(--text-dim)">${n.message}</div>
+            <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:6px">${fmtDate(n.createdAt)}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : `<div class="empty-state"><div class="empty-icon">🔔</div><div class="empty-title">No notifications</div><div class="empty-sub">You'll be notified when your cases are updated</div></div>`;
+
+  // Mark all read
+  notifs.forEach(n => n.read = true);
+  DB.save();
+  updateNotifBadge();
+}
+
+function markAllRead() {
+  DB.notifications.filter(n=>n.userId===currentUser.uid).forEach(n=>n.read=true);
+  DB.save();
+  updateNotifBadge();
+  renderNotifications();
+  toast('All notifications marked as read', 'success');
+}
+
+function updateNotifBadge() {
+  if (!currentUser) return;
+  const unread = DB.notifications.filter(n=>n.userId===currentUser.uid&&!n.read).length;
+  const badge = document.getElementById('notif-badge');
+  badge.style.display = unread > 0 ? 'inline' : 'none';
+  badge.textContent = unread;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+function renderSettings() {
+  const u = currentUser;
+  const myCount = DB.complaints.filter(c=>c.userId===u.uid).length;
+  document.getElementById('profile-avatar').textContent = u.name[0].toUpperCase();
+  document.getElementById('profile-name').textContent = u.name;
+  document.getElementById('profile-role-display').textContent = '// ' + u.role.toUpperCase();
+  document.getElementById('profile-email').textContent = u.email;
+  document.getElementById('profile-phone').textContent = u.phone || 'Not provided';
+  document.getElementById('profile-role').textContent = u.role.charAt(0).toUpperCase() + u.role.slice(1);
+  document.getElementById('profile-since').textContent = new Date(u.createdAt).toLocaleDateString('en-IN');
+  document.getElementById('profile-cases').textContent = myCount;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function statusBadge(s) {
+  const map = { pending:'badge-pending', under_investigation:'badge-investigating', resolved:'badge-resolved', closed:'badge-closed' };
+  const label = { pending:'Pending', under_investigation:'Investigating', resolved:'Resolved', closed:'Closed' };
+  return `<span class="badge ${map[s]||'badge-closed'}">${label[s]||s}</span>`;
+}
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
+}
+</script>
+</body>
+</html>
